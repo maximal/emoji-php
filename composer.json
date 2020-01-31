@@ -1,6 +1,6 @@
 {
 	"name": "maximal/emoji",
-	"description": "Emoji Detecting and Processing",
+	"description": "Emoji Detecting and Processing with no dependencies",
 	"type": "library",
 	"license": "MIT",
 	"authors": [
