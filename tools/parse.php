@@ -28,7 +28,7 @@ echo 'Getting contents of: ', $listUrl;
 $html = file_get_contents($listUrl);
 echo '  OK', PHP_EOL;
 
-if (!preg_match('#<title>Emoji\s*List,\s*v([\d.]+)</title>#ui', $html, $match)) {
+if (!preg_match('#<title>Emoji\s*List,\s*v([\d.]+)[^<]*</title>#ui', $html, $match)) {
 	echo 'Error: Unicode version not found.', PHP_EOL;
 	exit(1);
 }
