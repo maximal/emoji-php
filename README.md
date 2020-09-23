@@ -1,5 +1,8 @@
 # Emoji Detecting and Processing
 
+Unicode version: 13.1.
+
+
 ## Installation
 
 Install this library using the [Composer](https://getcomposer.org) `require` command:

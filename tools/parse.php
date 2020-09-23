@@ -14,6 +14,7 @@
 
 $timeStart = microtime(true);
 $outFile = '../src/Detector.php';
+$readmeFile = '../README.md';
 
 const SKIN_TONE_REGEX = '/[\x{1F3FB}-\x{1F3FF}]+/ui';
 const HAIR_REGEX = '/[\x{1F9B0}-\x{1F9B3}]+/ui';
@@ -23,7 +24,7 @@ $string = count($argv) > 1 ? $argv[1] : '🏴󠁧󠁢󠁳󠁣󠁴󠁿';
 
 //// Поехали!
 
-$listUrl = 'https://unicode.org/emoji/charts-13.0/emoji-list.html';
+$listUrl = 'https://unicode.org/emoji/charts-13.1/emoji-list.html';
 echo 'Getting contents of: ', $listUrl;
 $html = file_get_contents($listUrl);
 echo '  OK', PHP_EOL;
@@ -148,7 +149,19 @@ $written = file_put_contents(
 	)
 );
 if (!$written) {
-	exit(1);
+	exit(3);
+}
+
+$written = file_put_contents(
+	$readmeFile,
+	preg_replace(
+		'/Unicode version:[^\n]*\n/ui',
+		'Unicode version: ' . $version . ".\n",
+		file_get_contents($readmeFile)
+	)
+);
+if (!$written) {
+	exit(4);
 }
 
 $timeDiff = microtime(true) - $timeStart;
@@ -263,7 +276,7 @@ foreach (unpack('C*', $string) as $byte) {
 	echo dechex($byte), ' ';
 }
 echo PHP_EOL;
-	
+
 if ($res) {
 	echo 'match hex:  ';
 	foreach (unpack('C*', $match[1]) as $byte) {
