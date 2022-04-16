@@ -24,7 +24,7 @@ $string = count($argv) > 1 ? $argv[1] : '🏴󠁧󠁢󠁳󠁣󠁴󠁿';
 
 //// Поехали!
 
-$listUrl = 'https://unicode.org/emoji/charts-13.1/emoji-list.html';
+$listUrl = 'https://unicode.org/emoji/charts-14.0/emoji-list.html';
 echo 'Getting contents of: ', $listUrl;
 $html = file_get_contents($listUrl);
 echo '  OK', PHP_EOL;
