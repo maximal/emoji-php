@@ -1,6 +1,6 @@
 # Emoji Detecting and Processing
 
-Unicode version: 14.0.
+Unicode version: 15.0.
 
 
 ## Installation

@@ -13,8 +13,8 @@
  */
 
 $timeStart = microtime(true);
-$outFile = '../src/Detector.php';
-$readmeFile = '../README.md';
+$outFile = __DIR__ . '/../src/Detector.php';
+$readmeFile = __DIR__ . '/../README.md';
 
 const SKIN_TONE_REGEX = '/[\x{1F3FB}-\x{1F3FF}]+/ui';
 const HAIR_REGEX = '/[\x{1F9B0}-\x{1F9B3}]+/ui';
@@ -24,7 +24,7 @@ $string = count($argv) > 1 ? $argv[1] : '🏴󠁧󠁢󠁳󠁣󠁴󠁿';
 
 //// Поехали!
 
-$listUrl = 'https://unicode.org/emoji/charts-14.0/emoji-list.html';
+$listUrl = 'https://unicode.org/emoji/charts-15.0/emoji-list.html';
 echo 'Getting contents of: ', $listUrl;
 $html = file_get_contents($listUrl);
 echo '  OK', PHP_EOL;
@@ -105,7 +105,7 @@ foreach ($codes as $code) {
 }
 
 // Long sequences first
-usort($multipleChar, function ($a, $b) {
+usort($multipleChar, static function ($a, $b) {
 	if (strlen($a) === strlen($b)) {
 		return $a > $b ? 1 : -1;
 	}
