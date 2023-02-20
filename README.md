@@ -74,6 +74,22 @@ This method ignores any spaces, tabs and other whitespace characters (`\s`).
 Pass `false` to the second parameter for not ignoring whitespace characters.
 
 
+## Tests
+
+Run simple tests:
+```sh
+php test/tests.php
+```
+
+Expected output:
+```
+Tests total: 78
+        run: 78
+  succeeded: 78
+     failed: 0
+```
+
+
 ## Contact the author
 * Website: https://maximals.ru (Russian)
 * Twitter: https://twitter.com/almaximal

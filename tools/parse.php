@@ -221,6 +221,10 @@ class Parser
 			echo 'Shortcodes not found: ', count($noShortCodes), '  (ideally 0)', PHP_EOL;
 			echo 'Shortcodes non-unique: ', count($nonUniqueShortCodes), '  (ideally 0)', PHP_EOL;
 			echo 'Time: ', sprintf('%.1f s', $timeInfoEnd - $timeInfoStart), PHP_EOL;
+			echo 'No shortcodes:', PHP_EOL;
+			var_dump($noShortCodes);
+			echo 'Non-unique shortcodes:', PHP_EOL;
+			var_dump($nonUniqueShortCodes);
 		}
 
 
