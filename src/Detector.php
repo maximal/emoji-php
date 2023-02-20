@@ -40,7 +40,7 @@ class Detector
 	const COMPONENTS_REGEX = '/[' . self::SKIN_TONE_RANGE . self::HAIR_RANGE . ']+/ui';
 
 	/**
-	 * Detects whether the given string contains emoji characters.
+	 * Detect whether the given string contains emoji characters.
 	 * @param string $string Input string
 	 * @return bool Returns `true` if the string contains one or more emoji characters and `false` otherwise.
 	 */
@@ -55,7 +55,7 @@ class Detector
 	}
 
 	/**
-	 * Detects whether the given string consists of emoji characters only.
+	 * Detect whether the given string consists of emoji characters only.
 	 * @param string $string Input string
 	 * @param bool $ignoreWhitespace `true` to ignore whitespace characters
 	 * @return bool Returns `true` if the string consists of emoji characters only and `false` otherwise.
@@ -66,17 +66,43 @@ class Detector
 		if ($ignoreWhitespace) {
 			$string = preg_replace('/\s+/', '', $string);
 		}
-		return strlen($string) === 0;
+		return $string === '';
 	}
 
 	/**
-	 * Remove all emoji characters from given string
+	 * Remove all emoji characters from given string.
 	 * @param string $string Input string
 	 * @return string Returns the string without emoji characters.
 	 */
 	public static function removeEmoji(string $string): string
 	{
 		return preg_replace([self::COMPONENTS_REGEX, self::EMOJI_REGEX], ['', ''], $string);
+	}
+
+	/**
+	 * Get starting emojis of the input string.
+	 * @param string $string Input string
+	 * @param bool $ignoreWhitespace `true` to ignore whitespace characters
+	 * @return array Returns an array of starting emojis of the input string.
+	 */
+	public static function startingEmojis(string $string, bool $ignoreWhitespace = true): array
+	{
+		// Remove skin tones and hair types
+		$string = preg_replace(self::COMPONENTS_REGEX, '', $string);
+		if ($ignoreWhitespace) {
+			$string = preg_replace('/\s+/', '', $string);
+		}
+		$startingRegex = preg_replace(
+			['#^/\(#', '#]\+\)\+/ui$#'],
+			['/^(', '])(.*)/ui'],
+			self::EMOJI_REGEX
+		);
+		$result = [];
+		while (preg_match($startingRegex, $string, $match)) {
+			$result[] = $match[1];
+			$string = $match[2];
+		}
+		return $result;
 	}
 
 	/**

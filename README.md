@@ -12,7 +12,7 @@ composer require maximal/emoji '^1.0'
 ```
 
 or add the package name to the `require` section of your `composer.json` file:
-```json
+```
 "require": {
 	"maximal/emoji": "^1.0"
 }
@@ -36,12 +36,23 @@ use Maximal\Emoji\Detector;
 
 // Whether the given string contains emoji characters
 $isEmojiFound = Detector::containsEmoji($string);
+// 'test' -> false
+// 'test 👍' -> true
 
 // Whether the given string consists of emoji characters only
 $isEmojiOnly = Detector::onlyEmoji($string);
+// 'test 👍' -> false
+// '👍😘' -> true
 
 // String without any emoji character
 $stringWithoutEmoji = Detector::removeEmoji($string);
+// 'test 👍' -> 'test '
+// '👍😘' -> ''
+
+// Starting emojis of the string
+$startingEmojis = Detector::startingEmojis($string);
+// '👍😘 test' -> ['👍', '😘']
+// 'test 👍' -> []
 ```
 
 ### `containsEmoji($string)`
@@ -56,9 +67,14 @@ Pass `false` to the second parameter for not ignoring whitespace characters.
 ### `removeEmoji($string)`
 Returns the given string with all emoji characters removed.
 
+### `startingEmojis($string, $ignoreWhitespace = true)`
+Returns an array of starting emojis of the input string.
+
+This method ignores any spaces, tabs and other whitespace characters (`\s`).
+Pass `false` to the second parameter for not ignoring whitespace characters.
+
 
 ## Contact the author
-
 * Website: https://maximals.ru (Russian)
 * Twitter: https://twitter.com/almaximal
 * Telegram: https://t.me/maximal
