@@ -49,25 +49,33 @@ $stringWithoutEmoji = Detector::removeEmoji($string);
 // 'test 👍' -> 'test '
 // '👍😘' -> ''
 
+// All emojis of the string
+$allEmojis = Detector::allEmojis($string);
+// 'test 👍' -> ['👍']
+// '👍😘' -> ['👍', '😘']
+
 // Starting emojis of the string
 $startingEmojis = Detector::startingEmojis($string);
 // '👍😘 test' -> ['👍', '😘']
 // 'test 👍' -> []
 ```
 
-### `containsEmoji($string)`
+### `containsEmoji($string): bool`
 Detects whether the given string contains one or more emoji characters.
 
-### `onlyEmoji($string, $ignoreWhitespace = true)`
+### `onlyEmoji($string, $ignoreWhitespace = true): bool`
 Detects whether the given string consists of emoji characters only.
 
 This method ignores any spaces, tabs and other whitespace characters (`\s`).
 Pass `false` to the second parameter for not ignoring whitespace characters.
 
-### `removeEmoji($string)`
+### `removeEmoji($string): string`
 Returns the given string with all emoji characters removed.
 
-### `startingEmojis($string, $ignoreWhitespace = true)`
+### `allEmojis($string): array`
+Returns an array of all emojis of the input string.
+
+### `startingEmojis($string, $ignoreWhitespace = true): array`
 Returns an array of starting emojis of the input string.
 
 This method ignores any spaces, tabs and other whitespace characters (`\s`).
@@ -83,10 +91,10 @@ php test/tests.php
 
 Expected output:
 ```
-Tests total: 78
-        run: 78
-  succeeded: 78
-     failed: 0
+Tests total:  119
+        run:  119
+  succeeded:  119
+     failed:  0
 ```
 
 

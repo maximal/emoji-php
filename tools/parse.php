@@ -21,6 +21,13 @@ class Parser
 	const SKIN_TONE_REGEX = '/[\x{1F3FB}-\x{1F3FF}]+/ui';
 	const HAIR_REGEX = '/[\x{1F9B0}-\x{1F9B3}]+/ui';
 	const EMOJIPEDIA_URL = 'https://emojipedia.org/';
+	const LATEST_TEST_TEXT = 'https://unicode.org/Public/emoji/latest/emoji-test.txt';
+	const SKIN_TONES = ['1F3FB', '1F3FC', '1F3FD', '1F3FE', '1F3FF'];
+	const HAIRS = ['1F9B0', '1F9B1', '1F9B3', '1F9B2'];
+	const VARIANT_FORM = 'FE0F';
+
+	const OUT_SOURCE_FILE = __DIR__ . '/../src/Detector.php';
+	const OUT_README_FILE = __DIR__ . '/../README.md';
 
 	/** @var bool */
 	private $withShortcodes = false;
@@ -30,143 +37,174 @@ class Parser
 	public function run(array $argv): int
 	{
 		$timeStart = microtime(true);
-		$outFile = __DIR__ . '/../src/Detector.php';
-		$readmeFile = __DIR__ . '/../README.md';
 
 		$this->parseCommandParams($argv);
 
 		//// Поехали!
 
-		$timeUnicodeStart = microtime(true);
-		$listUrl = 'https://unicode.org/emoji/charts-15.0/emoji-list.html';
-		echo 'Getting contents of: ', $listUrl;
-		$html = file_get_contents($listUrl);
+		echo 'Getting contents of: ', self::LATEST_TEST_TEXT;
+		$text = file_get_contents(self::LATEST_TEST_TEXT);
 		echo '  OK', PHP_EOL;
+		$lines = preg_split('/(\r\n|\r|\n)+/', $text, -1, PREG_SPLIT_NO_EMPTY);
+		$version = null;
+		$date = null;
+		$unique = [];
+		$qualified = [];
+		$oneChars = [];
+		$oneCharPositions = [];
+		$multipleChars = [];
+		foreach ($lines as $line) {
+			$line = trim($line);
+			if (preg_match('/^#/', $line)) {
+				if (preg_match('/^#\s*Version:\s*(\S+)/', $line, $match)) {
+					$version = $match[1];
+				} elseif (preg_match('/^#\s*Date:\s*(.+)/', $line, $match)) {
+					$date = new DateTime($match[1]);
+				}
+				continue;
+			}
+			[$codePoints, $reminder] = explode(';', $line, 2);
+			$codePointsString = strtoupper(trim($codePoints));
+			if (in_array($codePointsString, self::SKIN_TONES)) {
+				// Skip skin tones themselves
+				continue;
+			}
+			if (in_array($codePointsString, self::HAIRS)) {
+				// Skip hair types themselves
+				continue;
+			}
+			if (!preg_match('/\s#\s(\S+)\s/', $reminder, $match)) {
+				continue;
+			}
 
-		if (!preg_match('#<title>Emoji\s*List,\s*v([\d.]+)[^<]*</title>#ui', $html, $match)) {
-			echo 'Error: Unicode version not found.', PHP_EOL;
-			return 1;
+			$codePoints = explode(' ', $codePointsString);
+			$codePointsWithoutSkinTones = array_filter(
+				$codePoints,
+				static fn ($point) => !in_array($point, self::SKIN_TONES)
+			);
+
+			$key = self::codePointsToRegex($codePointsWithoutSkinTones);
+			if (!isset($unique[$key])) {
+				$emoji = $match[1];
+
+				if (count($codePointsWithoutSkinTones) === 1) {
+					// Односимвольные Эмодзи
+					$oneChars[$key] = $emoji;
+					$oneCharPositions[$key] = self::codeToPos($codePointsWithoutSkinTones[0]);
+				} else {
+					$multipleChars[$key] = $emoji;
+				}
+
+				$lastPoint = $codePointsWithoutSkinTones[count($codePointsWithoutSkinTones) - 1];
+				if ($lastPoint === self::VARIANT_FORM) {
+					$qualified[$key] = $emoji;
+				} else {
+					$unique[$key] = $emoji;
+				}
+			}
 		}
-		$version = $match[1];
 
-
-		if (!preg_match_all(
-			'#<td class=\'code\'><a href=\'[^\']+\' name=\'[^\']+\'>([^<]+)</a></td>[\s\r\n]*' .
-			'<td class=\'andr\'><a href=\'[^\']+\' target=\'[^\']+\'><img alt=\'([^\']+)\'\s+#ui',
-			$html,
-			$matches
-		)) {
-			echo 'Error: Emoji characters not found.', PHP_EOL;
+		if ($date === null) {
+			echo 'Could not parse latest Emoji data.', PHP_EOL;
 			return 2;
 		}
 
-		$oneChar = [];
-		$multipleChar = [];
-		$codes = [];
-		$emojis = [];
-		$count = 0;
-		foreach ($matches[2] as $index => $emoji) {
-			$count++;
-			$code = trim(str_replace('U+', '', $matches[1][$index]));
-			echo "\t", $count, ': ', $emoji, ' => ', $code;
-			if (strpos($code, ' ') === false) {
-				// Односимвольный эмодзи
-				$pos = self::codeToPos($code);
-				echo ' => ', $pos;
-				$converted = self::posToCode($pos);
-				if ($converted !== $code) {
-					die;
-				}
-				$codes []= $pos;
-				$oneChar[$pos] = $emoji;
-			} else {
-				// Многосимвольный эмодзи
-				$points = [];
-				foreach (explode(' ', $code) as $point) {
-					$points []= '\x{' . self::posToCode(hexdec($point)) . '}';
-				}
-				echo ' => ', implode($points);
-				$multipleChar []= implode($points);
+		$full = [];
+		foreach ($unique as $codes => $emoji) {
+			$codesWithVariantForm = $codes . '\x{' . self::VARIANT_FORM . '}';
+			if (isset($qualified[$codesWithVariantForm])) {
+				// Длинная форма вначале
+				$full[$codesWithVariantForm] = $qualified[$codesWithVariantForm] . ' (fully-qualified)';
 			}
-			$emojis[$emoji] = $emoji;
-			echo PHP_EOL;
+			$full[$codes] = $emoji;
 		}
 
-		$timeUnicodeEnd = microtime(true);
-
-		echo 'Found one-character emojis: ', count($codes), PHP_EOL;
-		echo 'Found multiple-character emojis: ', count($multipleChar), PHP_EOL;
-		echo 'Found emojis: ', count($emojis), PHP_EOL;
-		echo 'Time: ', sprintf('%.1f s', $timeUnicodeEnd - $timeUnicodeStart), PHP_EOL;
-
-
-		// Обработка диапазонов
-		echo 'Finding ranges: ', PHP_EOL;
-		sort($codes);
-		$lastCode = 0;
-		$lastStart = 0;
+		// Обработка диапазонов односимвольных Эмодзи
+		echo 'Finding ranges in one-char Emojis...', PHP_EOL;
+		asort($oneCharPositions);
+		$lastPosition = 0;
+		$lastCode = '';
+		$lastStartPosition = 0;
+		$lastStartCode = '';
 		$ranges = [];
-		foreach ($codes as $code) {
-			if ($code > $lastCode + 1) {
-				if ($lastCode > $lastStart) {
+		foreach ($oneCharPositions as $code => $position) {
+			if ($position > $lastPosition + 1) {
+				if ($lastPosition > $lastStartPosition) {
 					// Пишем диапазон
-					echo "\t", $lastStart, '—', $lastCode, '  (', ($lastCode - $lastStart + 1), ')    ';
-					echo $oneChar[$lastStart], '—', $oneChar[$lastCode], PHP_EOL;
-					$ranges []= '\x{' . self::posToCode($lastStart) . '}' .
-						($lastCode > $lastStart + 1 ? '-' : '') .
-						'\x{' . self::posToCode($lastCode) . '}';
-				} elseif ($lastCode > 0) {
+					$count = $lastPosition - $lastStartPosition + 1;
+					$range =  $lastStartCode . ($count > 2 ? '-' : '') . $lastCode;
+					$ranges[] = $range;
+					//echo "\t", $lastStartCode, '—', $lastCode;
+					//echo '   ', $range, '   (', $count, ')    ';
+					//echo $oneChars[$lastStartCode], '—', $oneChars[$lastCode], PHP_EOL;
+
+				} elseif ($lastPosition > 0) {
 					// Всего один символ
-					echo "\t", $lastCode, '    ', $oneChar[$lastCode], PHP_EOL;
-					$ranges []= '\x{' . self::posToCode($lastCode) . '}';
+					$ranges[] = $lastCode;
+					//echo "\t", $lastCode, '    ', $lastCode, '    ', $oneChars[$lastCode], PHP_EOL;
 				}
-				$lastStart = $code;
+				$lastStartCode = $code;
+				$lastStartPosition = $position;
 			}
 			$lastCode = $code;
+			$lastPosition = $position;
 		}
 
+		echo PHP_EOL;
+		echo 'Emojis total:  ', count($full), PHP_EOL;
+		echo '      unique:  ', count($unique), PHP_EOL;
+		echo '   one-chars:  ', count($oneChars), PHP_EOL;
+		echo '      ranges:  ', count($ranges), PHP_EOL;
+		echo ' multi-chars:  ', count($multipleChars), PHP_EOL;
+		echo '     version:  ', $version ?? '<none>', PHP_EOL;
+		echo '        date:  ', $date->format('c'), PHP_EOL;
+
+		$multipleCharCodes = array_keys($multipleChars);
 		// Long sequences first
-		usort($multipleChar, static function ($a, $b) {
+		uasort($multipleCharCodes, static function ($a, $b) {
 			if (strlen($a) === strlen($b)) {
 				return $a > $b ? 1 : -1;
 			}
 			return strlen($a) < strlen($b) ? 1 : -1;
 		});
 
-		// Все диапазоны
-		echo 'Found ranges: ', count($ranges), PHP_EOL;
-		echo "\t", implode(PHP_EOL. "\t", $ranges), PHP_EOL;
-
-		// Регвыр для односимвольных эмодзи
-		$oneCharRegex = '/[' . implode($ranges) . ']+/ui';
-		echo PHP_EOL, 'One-char regex: ', $oneCharRegex, PHP_EOL;
-
-		// Регвыр для многосимвольных эмодзи
-		$complexRegex = '/(' . implode('|', $multipleChar) . ')+/ui';
-		echo PHP_EOL, 'Multiple-char regex: ', $complexRegex, PHP_EOL;
-
 		// Общий регвыр
-		$totalRegex = '/(' . implode('|', $multipleChar) . '|[' . implode($ranges) . ']+)+/ui';
-		echo PHP_EOL, 'Total regex: ', $totalRegex, PHP_EOL;
+		$totalRegex =
+			'/(' .
+			// Многосимвольные
+			implode('|', $multipleCharCodes) .
+			// Односимвольные
+			'|[' . implode($ranges) . ']' .
+			')+/ui';
 
 		$written = file_put_contents(
-			$outFile,
+			self::OUT_SOURCE_FILE,
 			preg_replace(
 				[
 					'/const PARSE_DATETIME = [^;]*;/ui',
+					'/\* @since .+ Last parsing.\n/ui',
+					'/\* @since .+ Latest data.\n/ui',
+					'/const UNICODE_DATA_DATETIME = [^;]*;/ui',
 					'/const UNICODE_VERSION = [^;]*;/ui',
-					'/\* Unicode version:[^\n]*\n/',
+					'/\* Unicode version:[^\n]*\n/ui',
 					'/const TOTAL_EMOJI_COUNT = [^;]*;/ui',
+					'/\* Full Emoji regex[^\n]*\n/ui',
 					'/const EMOJI_REGEX =[^;]*;/ui',
 				],
 				[
-					"const PARSE_DATETIME = '" . date('c') . "';",
+					"const PARSE_DATETIME = '" .
+					preg_replace('/\+00:00$/', 'Z', date('c')) . "';",
+					"* @since " . date('Y-m-d') . " Last parsing.\n",
+					"* @since " . $date->format('Y-m-d') . " Latest data.\n",
+					"const UNICODE_DATA_DATETIME = '" .
+					preg_replace('/\+00:00$/', 'Z', $date->format('c')) . "';",
 					"const UNICODE_VERSION = '" . $version . "';",
 					"* Unicode version: " . $version . "\n",
-					"const TOTAL_EMOJI_COUNT = " . $count . ";",
-					"const EMOJI_REGEX =\n\t\t" .  self::stringWrap($totalRegex) . ";",
+					"const TOTAL_EMOJI_COUNT = " . count($unique) . ";",
+					"* Full Emoji regex (" . strlen($totalRegex) . " bytes)\n",
+					"const EMOJI_REGEX =\n\t\t" . self::regexWrap($totalRegex) . ";",
 				],
-				file_get_contents($outFile)
+				file_get_contents(self::OUT_SOURCE_FILE)
 			)
 		);
 		if (!$written) {
@@ -174,11 +212,11 @@ class Parser
 		}
 
 		$written = file_put_contents(
-			$readmeFile,
+			self::OUT_README_FILE,
 			preg_replace(
 				'/Unicode version:[^\n]*\n/ui',
 				'Unicode version: ' . $version . ".\n",
-				file_get_contents($readmeFile)
+				file_get_contents(self::OUT_README_FILE)
 			)
 		);
 		if (!$written) {
@@ -234,10 +272,11 @@ class Parser
 			echo 'Getting contents of: ', $annotationsUrl;
 			$html = file_get_contents($annotationsUrl);
 			echo '  OK', PHP_EOL;
+			// ... ... ... обработать аннотации и переводы ... ... ...
 		}
 
 		$timeDiff = microtime(true) - $timeStart;
-		echo 'All done in ', sprintf('%.1f', $timeDiff), ' sec.', PHP_EOL;
+		echo PHP_EOL, 'All done in ', sprintf('%.1f', $timeDiff), ' sec.', PHP_EOL;
 		return 0;
 	}
 
@@ -255,7 +294,19 @@ class Parser
 		return $code;
 	}
 
-	private static function stringWrap(string $string): string
+	private static function codePointsToRegex(array $codePoints): string
+	{
+		return implode(
+			array_map(
+				static function ($item) {
+					return '\x{' . $item . '}';
+				},
+				$codePoints
+			)
+		);
+	}
+
+	private static function regexWrap(string $string): string
 	{
 		return "'" . preg_replace('/(.{70,75}[}|-])/', "$1' .\n\t\t'", $string) . "'";
 	}
